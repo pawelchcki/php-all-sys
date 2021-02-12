@@ -1,0 +1,11 @@
+[package]
+name = "php-all-sys"
+version = "0.0.0"
+authors = ["Paweł Chojnacki <pawel.chcki@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+
+[build-dependencies]
+php-build = { path = "./sys-build"}
+rayon = "1.5"

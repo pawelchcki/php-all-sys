@@ -1,0 +1,11 @@
+[package]
+name = "php-build"
+version = "0.1.0"
+authors = ["Paweł Chojnacki <pawel.chcki@gmail.com>"]
+edition = "2018"
+
+
+[dependencies]
+anyhow = "1.0"
+bindgen = "0.57"
+cc= "1.0"
