@@ -63,10 +63,16 @@ pub fn build_php(
     check_c_path: Option<&PathBuf>,
 ) {
     println!("cargo:rerun-if-changed={}", wrapper_h.to_str().unwrap());
+    println!("info: {:?}", root_path);
 
     let include_paths = include_paths
         .iter()
-        .map(|v| root_path.join(v).canonicalize().unwrap())
+        .map(|v| {
+            root_path
+                .join(v)
+                .canonicalize()
+                .expect(format!("Include path not found : {:?}", root_path.join(v)).as_str())
+        })
         .map(|v| String::from(v.to_str().unwrap()));
 
     if let Some(p) = check_c_path {

@@ -55,25 +55,24 @@ fn main() -> anyhow::Result<()> {
 
     let wrapper_h = render_wrapper_h()?;
     [
-        (
-            output_path.join("php54.rs"),
-            vendor_path.join("php-54/include"),
-        ),
-        (
-            output_path.join("php56.rs"),
-            vendor_path.join("php-56/include"),
-        ),
-        (
-            output_path.join("php56_zts.rs"),
-            vendor_path.join("php-56-zts/include"),
-        ),
+        ("php54.rs", "php-54/include/php5"),
+        ("php56.rs", "php-56/include/php5"),
+        ("php56_zts.rs", "php-56-zts/include/php5"),
+        ("php70.rs", "php-70/include/php/20151012"),
+        ("php71.rs", "php-71/include/php/20160303"),
+        ("php72.rs", "php-72/include/php/20170718"),
+        ("php73.rs", "php-73/include/php/20180731"),
+        ("php74.rs", "php-74/include/php/20190902"),
+        ("php80.rs", "php-80/include/php/20200930"),
     ]
-    .par_iter()
-    .map(|(binding_out, vendor_path)| {
+    .iter()
+    .map(|(out_file, include_root)| (output_path.join(out_file), vendor_path.join(include_root)))
+    .par_bridge()
+    .map(|(binding_out, root_include_path)| {
         build_php(
             &binding_out,
-            vendor_path,
-            PHP5_INCLUDES,
+            &root_include_path,
+            PHP_INCLUDES,
             &wrapper_h,
             None,
         );
