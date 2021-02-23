@@ -1,9 +1,9 @@
 on: [push]
-name: "NM build"
+name: "PHP-all-sys"
 
 jobs:
-  check:
-    name: Rust project
+  bindings_test:
+    name: Bindings lints and tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
@@ -12,3 +12,50 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+      - name: Install php-sys-build cargo bin 
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --path ./sys-build
+      - name: Run php-sys-build - to compare the output
+        uses: actions-rs/cargo@v1
+        with:
+          command: php-sys-build
+      - name: Run php-sys-build - to compare the output
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+      - name: Verify generated code matches committed code
+        run: git add -A && git diff --staged --exit-code
+  cargo-php-sys-build:
+    name: Cargo php-sys-build check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./sys-build
+    steps:
+      - uses: actions/checkout@v1
+      - run: rustup component add clippy
+      - uses: actions-rs/clippy-check@v1
+        with:
+          name: clippy php-sys-build 
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features --manifest-path sys-build/Cargo.toml
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --manifest-path sys-build/Cargo.toml
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path sys-build/Cargo.toml

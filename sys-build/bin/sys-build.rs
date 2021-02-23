@@ -5,6 +5,18 @@ use cargo_php_sys_build::*;
 use clap::Clap;
 use rayon::prelude::*;
 
+const VERSIONS: &[(&str, &str)] = &[
+    ("php54.rs", "php-54/include/php5"),
+    ("php56.rs", "php-56/include/php5"),
+    ("php56_zts.rs", "php-56-zts/include/php5"),
+    ("php70.rs", "php-70/include/php/20151012"),
+    ("php71.rs", "php-71/include/php/20160303"),
+    ("php72.rs", "php-72/include/php/20170718"),
+    ("php73.rs", "php-73/include/php/20180731"),
+    ("php74.rs", "php-74/include/php/20190902"),
+    ("php80.rs", "php-80/include/php/20200930"),
+];
+
 #[derive(Clap, Debug)]
 #[clap(version=env!("CARGO_PKG_VERSION"))]
 struct Opts {
@@ -24,12 +36,13 @@ fn parse() -> Opts {
     let mut opts: Opts = Opts::parse();
     opts.output_path = opts
         .output_path
-        .or(env::current_dir().ok().map(|p| p.join("src/generated")));
+        .or_else(|| env::current_dir().ok().map(|p| p.join("src/generated")));
     opts.vendor_path = opts
         .vendor_path
-        .or(env::current_dir().ok().map(|p| p.join("vendor")));
+        .or_else(|| env::current_dir().ok().map(|p| p.join("vendor")));
     opts
 }
+
 
 fn main() -> anyhow::Result<()> {
     let opts = parse();
@@ -54,30 +67,22 @@ fn main() -> anyhow::Result<()> {
     env::set_var("OUT_DIR", tempdir.path().to_str().unwrap());
 
     let wrapper_h = render_wrapper_h()?;
-    [
-        ("php54.rs", "php-54/include/php5"),
-        ("php56.rs", "php-56/include/php5"),
-        ("php56_zts.rs", "php-56-zts/include/php5"),
-        ("php70.rs", "php-70/include/php/20151012"),
-        ("php71.rs", "php-71/include/php/20160303"),
-        ("php72.rs", "php-72/include/php/20170718"),
-        ("php73.rs", "php-73/include/php/20180731"),
-        ("php74.rs", "php-74/include/php/20190902"),
-        ("php80.rs", "php-80/include/php/20200930"),
-    ]
-    .iter()
-    .map(|(out_file, include_root)| (output_path.join(out_file), vendor_path.join(include_root)))
-    .par_bridge()
-    .map(|(binding_out, root_include_path)| {
-        build_php(
-            &binding_out,
-            &root_include_path,
-            PHP_INCLUDES,
-            &wrapper_h,
-            None,
-        );
-    })
-    .collect::<()>(); //join
+    VERSIONS
+        .iter()
+        .map(|(out_file, include_root)| {
+            (output_path.join(out_file), vendor_path.join(include_root))
+        })
+        .par_bridge()
+        .map(|(binding_out, root_include_path)| {
+            build_php(
+                &binding_out,
+                &root_include_path,
+                PHP_INCLUDES,
+                &wrapper_h,
+                None,
+            );
+        })
+        .collect::<()>(); //join
 
     tempdir.close()?;
     Ok(())

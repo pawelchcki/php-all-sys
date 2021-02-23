@@ -1,4 +1,3 @@
-use bindgen;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -63,15 +62,13 @@ pub fn build_php(
     check_c_path: Option<&PathBuf>,
 ) {
     println!("cargo:rerun-if-changed={}", wrapper_h.to_str().unwrap());
-    println!("info: {:?}", root_path);
-
     let include_paths = include_paths
         .iter()
         .map(|v| {
             root_path
                 .join(v)
                 .canonicalize()
-                .expect(format!("Include path not found : {:?}", root_path.join(v)).as_str())
+                .unwrap_or_else(|_| panic!("Include path not found : {:?}", root_path.join(v)))
         })
         .map(|v| String::from(v.to_str().unwrap()));
 
@@ -84,14 +81,30 @@ pub fn build_php(
 
     let bindings = bindgen::Builder::default()
         .header(wrapper_h.to_str().unwrap())
-        // .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .parse_callbacks(Box::new(build_ignored_macros()))
         .whitelist_function(r"(?i)php_.*")
         .whitelist_function(r"(?i)[_]?zend.*")
         .whitelist_function(r"(?i).*zend")
-        .whitelist_type("(?i)zend.*")
-        .whitelist_var(".*")
-        .raw_line( "#![allow(non_upper_case_globals, non_camel_case_types, non_snake_case, clashing_extern_declarations)]\n")
+        .whitelist_type(r"(?i)zend.*")
+        .whitelist_var(r"(?i)[_]?zend.*")
+        .whitelist_var(r"(?i)php.*")
+        .whitelist_var(r"(?i)[_]?is_.*")
+        .whitelist_var(r"(?i)configure_.*")
+        .whitelist_var(r"(?i)gc_.*")
+        .whitelist_var(r"(?i)using.*")
+        .whitelist_var(r"(?i)z_.*")
+        .whitelist_var(r"(?i)zmsg")
+        .whitelist_var(r"(?i)module.*")
+        .whitelist_var(r"(?i)hash_.*")
+        .whitelist_var(r"(?i)debug.*")
+        .whitelist_var(r"(?i).*_globals")
+        .whitelist_var(r"(?i)module_registry")
+        .whitelist_var(r"(?i)empty_fcall.*")
+        .whitelist_var(r"(?i)std_object_handlers")
+        .whitelist_var(r"(?i).*zval.*")
+        .whitelist_var(r"(?i)")
+        .raw_line("#![allow(clippy::all)]") // trusting bindgen - lets disable clippy reported things, as we can't do anything
+        .raw_line("#![allow(non_upper_case_globals, non_camel_case_types, non_snake_case, clashing_extern_declarations)]\n")
         .clang_args(clang_args)
         .generate()
         .expect("Unable to generate bindings");
