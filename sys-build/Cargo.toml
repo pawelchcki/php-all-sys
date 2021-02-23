@@ -1,11 +1,17 @@
 [package]
-name = "php-build"
+name = "cargo-php-sys-build"
 version = "0.1.0"
 authors = ["Paweł Chojnacki <pawel.chcki@gmail.com>"]
 edition = "2018"
-
 
 [dependencies]
 anyhow = "1.0"
 bindgen = "0.57"
 cc= "1.0"
+rayon = "1.5"
+clap = "3.0.0-beta.2"
+tempdir = "0.3.7"
+
+[[bin]]
+name = "cargo-php-sys-build"
+path = "bin/sys-build.rs"

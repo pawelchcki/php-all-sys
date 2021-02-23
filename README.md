@@ -21,3 +21,12 @@ Its possible we'll need to vendor OSX and Windows PHP includes to fully support 
 | PHP 7.3     |       |         |     |           |             |
 | PHP 7.4     |       |         |     |           |             |
 | PHP 8.0     |       |         |     |           |             |
+
+## Generating bindings
+
+private crate sys-build can be installed and used to generate binding files
+
+```bash
+cargo install --path sys-build
+cargo php-sys-build # to generate files, should be run from Crates root dir
+```

@@ -7,5 +7,5 @@ edition = "2018"
 [dependencies]
 
 [build-dependencies]
-php-build = { path = "./sys-build"}
-rayon = "1.5"
+# php-build = { path = "./sys-build"}
+# rayon = "1.5"

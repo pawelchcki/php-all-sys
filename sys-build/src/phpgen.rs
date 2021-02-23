@@ -57,7 +57,7 @@ where
 
 pub fn build_php(
     bindings_rs: &PathBuf,
-    root_path: &str,
+    root_path: &PathBuf,
     include_paths: &[&str],
     wrapper_h: &PathBuf,
     check_c_path: Option<&PathBuf>,
@@ -66,8 +66,7 @@ pub fn build_php(
 
     let include_paths = include_paths
         .iter()
-        .map(|v| format!("{}/{}", root_path, v))
-        .map(|v| Path::new(&v).canonicalize().unwrap())
+        .map(|v| root_path.join(v).canonicalize().unwrap())
         .map(|v| String::from(v.to_str().unwrap()));
 
     if let Some(p) = check_c_path {
