@@ -1,0 +1,19 @@
+on: [push]
+
+jobs:
+  k6_local_test:
+    name: Q&D osx compilation test
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: rustup
+        run: brew install rustup
+
+      - name: init
+        run: rustup-init
+
+      - name: test
+        run: cargo test
