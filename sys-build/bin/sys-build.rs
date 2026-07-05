@@ -2,7 +2,7 @@ use std::{env, path::PathBuf};
 
 use anyhow::Error;
 use cargo_php_sys_build::*;
-use clap::Clap;
+use clap::Parser;
 use rayon::prelude::*;
 
 const VERSIONS: &[(&str, &str)] = &[
@@ -15,20 +15,25 @@ const VERSIONS: &[(&str, &str)] = &[
     ("php73.rs", "php-73/include/php/20180731"),
     ("php74.rs", "php-74/include/php/20190902"),
     ("php80.rs", "php-80/include/php/20200930"),
+    ("php81.rs", "php-81/include/php/20210902"),
+    ("php82.rs", "php-82/include/php/20220829"),
+    ("php83.rs", "php-83/include/php/20230831"),
+    ("php84.rs", "php-84/include/php/20240924"),
+    ("php85.rs", "php-85/include/php/20250925"),
 ];
 
-#[derive(Clap, Debug)]
-#[clap(version=env!("CARGO_PKG_VERSION"))]
+#[derive(Parser, Debug)]
+#[command(version)]
 struct Opts {
     // Cargo command name when run via Cargo
     cargo_command_name: Option<String>,
 
     /// Directory to output generated files. Defaults to current working directory + src/generated
-    #[clap(short, long)]
+    #[arg(short, long)]
     output_path: Option<PathBuf>,
 
     /// Directory with vendored PHP include files. Defaults to current working directory + vendor
-    #[clap(short, long)]
+    #[arg(short, long)]
     vendor_path: Option<PathBuf>,
 }
 

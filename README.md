@@ -21,6 +21,11 @@ Its possible we'll need to vendor OSX and Windows PHP includes to fully support 
 | PHP 7.3     |  Yes  |         |     |           |             |
 | PHP 7.4     |  Yes  |         |     |           |             |
 | PHP 8.0     |  Yes  |         |     |           |             |
+| PHP 8.1     |  Yes  |         |     |           |             |
+| PHP 8.2     |  Yes  |         |     |           |             |
+| PHP 8.3     |  Yes  |         |     |           |             |
+| PHP 8.4     |  Yes  |         |     |           |             |
+| PHP 8.5     |  Yes  |         |     |           |             |
 
 ## Generating bindings
 
