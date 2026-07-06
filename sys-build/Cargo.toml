@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
-bindgen = "=0.57.0"
+bindgen = "0.70"
 cc= "1.0"
 rayon = "1.5"
 clap = { version = "4", features = ["derive"] }
