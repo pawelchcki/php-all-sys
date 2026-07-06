@@ -5,7 +5,7 @@ authors = ["Paweł Chojnacki <pawel.chcki@gmail.com>"]
 edition = "2021"
 repository = "https://github.com/pawelchcki/php-all-sys.git"
 license = "Apache-2.0 OR BSD-3-Clause"
-description = "Example PHP extension built from a single Rust source against every PHP 8.x ABI"
+description = "Example PHP extension: one .so that loads on every PHP 8.x via runtime ABI detection"
 publish = false
 
 [lib]
@@ -17,13 +17,3 @@ crate-type = ["cdylib"]
 
 [dependencies]
 php-all-sys = { path = ".." }
-
-# Exactly one of these selects the PHP version whose ABI we compile against.
-# The *same* src/lib.rs compiles unchanged against every one of them.
-[features]
-php80 = []
-php81 = []
-php82 = []
-php83 = []
-php84 = []
-php85 = []

@@ -36,40 +36,51 @@ jobs:
       - run: cargo build --manifest-path sys-build/Cargo.toml
       - run: cargo clippy --manifest-path sys-build/Cargo.toml
 
-  # The headline job: prove one Rust source builds a working extension for
-  # every supported PHP 8.x. Each matrix leg installs a real PHP, compiles the
-  # example against the matching ABI feature, loads the .so into that PHP and
-  # runs a smoke test. Because build + run share the runner, the extension's
-  # glibc and PHP ABI always match the interpreter it is loaded into.
-  extension:
-    name: extension / PHP ${{ matrix.php }}
+  # Build the example ONCE, with no PHP-version feature: a single .so that
+  # detects the host ABI at load time. The very same binary is then loaded into
+  # every PHP 8.x by the `load` job below -- that is the real portability proof.
+  build-universal:
+    name: Build one .so for all PHP 8.x
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build the universal extension (no feature)
+        run: cargo build --release --manifest-path example-ext/Cargo.toml
+      - name: Upload the single .so as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libphp_all_sys_example
+          path: target/release/libphp_all_sys_example.so
+          if-no-files-found: error
+
+  # The headline job: prove ONE binary loads into every supported PHP 8.x. Each
+  # matrix leg installs a real PHP, downloads the *same* artifact built above,
+  # loads it and runs the smoke test. All legs share the `ubuntu-latest` glibc
+  # of the builder, so the only thing that can differ is the PHP ABI -- which the
+  # extension reads from the host at load time.
+  load:
+    name: load / PHP ${{ matrix.php }}
+    needs: build-universal
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { php: '8.0', feature: php80 }
-          - { php: '8.1', feature: php81 }
-          - { php: '8.2', feature: php82 }
-          - { php: '8.3', feature: php83 }
-          - { php: '8.4', feature: php84 }
-          - { php: '8.5', feature: php85 }
+        php: ['8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5 # for tests/run.sh + smoke.php
+
+      - name: Download the one .so built by build-universal
+        uses: actions/download-artifact@v4
+        with:
+          name: libphp_all_sys_example
+          path: artifact
 
       - name: Install PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          # NTS, non-debug -- matches the ABI/build-id the extension targets.
+          # NTS, non-debug -- the extension echoes whatever this host reports.
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - name: Build extension for ${{ matrix.feature }}
-        run: cargo build --release --manifest-path example-ext/Cargo.toml --features ${{ matrix.feature }}
-
-      - name: Load into PHP and run smoke test
-        run: |
-          so="target/release/libphp_all_sys_example.so"
-          test -f "$so" || { echo "extension not built at $so"; exit 1; }
-          bash example-ext/tests/run.sh "$so" php
+      - name: Load the SAME binary into PHP ${{ matrix.php }} and smoke-test
+        run: bash example-ext/tests/run.sh artifact/libphp_all_sys_example.so php
