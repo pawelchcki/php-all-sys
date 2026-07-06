@@ -1,61 +1,75 @@
-on: [push]
 name: "PHP-all-sys"
 
+on:
+  push:
+  pull_request:
+
 jobs:
-  bindings_test:
-    name: Bindings lints and tests
+  # Sanity-check the generated bindings themselves: they must compile (which
+  # also runs the compile-time struct-layout const-assertions) and pass tests.
+  bindings:
+    name: Bindings build & test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - run: rustup component add clippy
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-      - name: Install php-sys-build cargo bin 
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --path ./sys-build
-      - name: Run php-sys-build - to compare the output
-        uses: actions-rs/cargo@v1
-        with:
-          command: php-sys-build
-      - name: Run php-sys-build - to compare the output
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-      - name: Verify generated code matches committed code
-        run: git add -A && git diff --staged --exit-code || true # temporarily allow failure
-  cargo-php-sys-build:
-    name: Cargo php-sys-build check
+          components: clippy
+      - name: cargo build (bindings crate)
+        run: cargo build -p php-all-sys
+      - name: cargo test (bindings crate)
+        run: cargo test -p php-all-sys
+      - name: clippy (bindings crate)
+        run: cargo clippy -p php-all-sys
+
+  # Keep the private binding-generator crate compiling and lint-clean. It lives
+  # in its own manifest; regenerating the bindings needs libclang + vendored
+  # headers and is done manually, so we only build/lint it here.
+  sys-build:
+    name: sys-build build & clippy
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./sys-build
     steps:
-      - uses: actions/checkout@v1
-      - run: rustup component add clippy
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          name: clippy php-sys-build 
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features --manifest-path sys-build/Cargo.toml
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
+          components: clippy
+      - run: cargo build --manifest-path sys-build/Cargo.toml
+      - run: cargo clippy --manifest-path sys-build/Cargo.toml
+
+  # The headline job: prove one Rust source builds a working extension for
+  # every supported PHP 8.x. Each matrix leg installs a real PHP, compiles the
+  # example against the matching ABI feature, loads the .so into that PHP and
+  # runs a smoke test. Because build + run share the runner, the extension's
+  # glibc and PHP ABI always match the interpreter it is loaded into.
+  extension:
+    name: extension / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { php: '8.0', feature: php80 }
+          - { php: '8.1', feature: php81 }
+          - { php: '8.2', feature: php82 }
+          - { php: '8.3', feature: php83 }
+          - { php: '8.4', feature: php84 }
+          - { php: '8.5', feature: php85 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
         with:
-          command: check
-          args: --manifest-path sys-build/Cargo.toml
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --manifest-path sys-build/Cargo.toml
+          php-version: ${{ matrix.php }}
+          # NTS, non-debug -- matches the ABI/build-id the extension targets.
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build extension for ${{ matrix.feature }}
+        run: cargo build --release --manifest-path example-ext/Cargo.toml --features ${{ matrix.feature }}
+
+      - name: Load into PHP and run smoke test
+        run: |
+          so="target/release/libphp_all_sys_example.so"
+          test -f "$so" || { echo "extension not built at $so"; exit 1; }
+          bash example-ext/tests/run.sh "$so" php

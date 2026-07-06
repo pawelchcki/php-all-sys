@@ -1,3 +1,7 @@
+[workspace]
+members = ["example-ext"]
+exclude = ["sys-build"]
+
 [package]
 name = "php-all-sys"
 version = "0.0.1"
