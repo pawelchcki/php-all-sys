@@ -1,61 +1,86 @@
-on: [push]
 name: "PHP-all-sys"
 
+on:
+  push:
+  pull_request:
+
 jobs:
-  bindings_test:
-    name: Bindings lints and tests
+  # Sanity-check the generated bindings themselves: they must compile (which
+  # also runs the compile-time struct-layout const-assertions) and pass tests.
+  bindings:
+    name: Bindings build & test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - run: rustup component add clippy
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-      - name: Install php-sys-build cargo bin 
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --path ./sys-build
-      - name: Run php-sys-build - to compare the output
-        uses: actions-rs/cargo@v1
-        with:
-          command: php-sys-build
-      - name: Run php-sys-build - to compare the output
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-      - name: Verify generated code matches committed code
-        run: git add -A && git diff --staged --exit-code || true # temporarily allow failure
-  cargo-php-sys-build:
-    name: Cargo php-sys-build check
+          components: clippy
+      - name: cargo build (bindings crate)
+        run: cargo build -p php-all-sys
+      - name: cargo test (bindings crate)
+        run: cargo test -p php-all-sys
+      - name: clippy (bindings crate)
+        run: cargo clippy -p php-all-sys
+
+  # Keep the private binding-generator crate compiling and lint-clean. It lives
+  # in its own manifest; regenerating the bindings needs libclang + vendored
+  # headers and is done manually, so we only build/lint it here.
+  sys-build:
+    name: sys-build build & clippy
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./sys-build
     steps:
-      - uses: actions/checkout@v1
-      - run: rustup component add clippy
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          name: clippy php-sys-build 
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features --manifest-path sys-build/Cargo.toml
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
+          components: clippy
+      - run: cargo build --manifest-path sys-build/Cargo.toml
+      - run: cargo clippy --manifest-path sys-build/Cargo.toml
+
+  # Build the example ONCE, with no PHP-version feature: a single .so that
+  # detects the host ABI at load time. The very same binary is then loaded into
+  # every PHP 8.x by the `load` job below -- that is the real portability proof.
+  build-universal:
+    name: Build one .so for all PHP 8.x
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build the universal extension (no feature)
+        run: cargo build --release --manifest-path example-ext/Cargo.toml
+      - name: Upload the single .so as an artifact
+        uses: actions/upload-artifact@v4
         with:
-          command: check
-          args: --manifest-path sys-build/Cargo.toml
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
+          name: libphp_all_sys_example
+          path: target/release/libphp_all_sys_example.so
+          if-no-files-found: error
+
+  # The headline job: prove ONE binary loads into every supported PHP 8.x. Each
+  # matrix leg installs a real PHP, downloads the *same* artifact built above,
+  # loads it and runs the smoke test. All legs share the `ubuntu-latest` glibc
+  # of the builder, so the only thing that can differ is the PHP ABI -- which the
+  # extension reads from the host at load time.
+  load:
+    name: load / PHP ${{ matrix.php }}
+    needs: build-universal
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v5 # for tests/run.sh + smoke.php
+
+      - name: Download the one .so built by build-universal
+        uses: actions/download-artifact@v4
         with:
-          command: test
-          args: --manifest-path sys-build/Cargo.toml
+          name: libphp_all_sys_example
+          path: artifact
+
+      - name: Install PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          # NTS, non-debug -- the extension echoes whatever this host reports.
+
+      - name: Load the SAME binary into PHP ${{ matrix.php }} and smoke-test
+        run: bash example-ext/tests/run.sh artifact/libphp_all_sys_example.so php

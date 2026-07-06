@@ -1,0 +1,19 @@
+[package]
+name = "php-all-sys-example"
+version = "0.0.1"
+authors = ["Paweł Chojnacki <pawel.chcki@gmail.com>"]
+edition = "2021"
+repository = "https://github.com/pawelchcki/php-all-sys.git"
+license = "Apache-2.0 OR BSD-3-Clause"
+description = "Example PHP extension: one .so that loads on every PHP 8.x via runtime ABI detection"
+publish = false
+
+[lib]
+# A PHP extension is a C shared object that PHP dlopen()s at runtime. Undefined
+# PHP/Zend symbols are resolved from the hosting php binary, so we never link
+# against libphp -- we just emit the shared object.
+name = "php_all_sys_example"
+crate-type = ["cdylib"]
+
+[dependencies]
+php-all-sys = { path = ".." }
