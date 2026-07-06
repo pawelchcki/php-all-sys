@@ -1,6 +1,5 @@
 [workspace]
-members = ["example-ext"]
-exclude = ["sys-build"]
+members = ["example-ext", "sys-build"]
 
 [package]
 name = "php-all-sys"

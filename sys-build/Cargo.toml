@@ -3,6 +3,9 @@ name = "cargo-php-sys-build"
 version = "0.1.0"
 authors = ["Paweł Chojnacki <pawel.chcki@gmail.com>"]
 edition = "2018"
+repository = "https://github.com/pawelchcki/php-all-sys.git"
+license = "Apache-2.0 OR BSD-3-Clause"
+description = "Generate pregenerated Rust bindings for php-all-sys from vendored PHP headers"
 
 [dependencies]
 anyhow = "1.0"

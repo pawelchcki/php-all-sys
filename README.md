@@ -70,10 +70,10 @@ the running PHP actually uses.
 
 ## Generating bindings
 
-private crate sys-build can be installed and used to generate binding files
+The `cargo-php-sys-build` crate can be installed and used to generate binding files.
 
 ```bash
-cargo install --path sys-build
+cargo install cargo-php-sys-build
 cargo php-sys-build # to generate files, should be run from Crates root dir
 cargo fmt # to format generated files before commiting 
 ```
