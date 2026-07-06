@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-function fail(string $msg): never {
+function fail(string $msg) {
     fwrite(STDERR, "FAIL: {$msg}\n");
     exit(1);
 }
